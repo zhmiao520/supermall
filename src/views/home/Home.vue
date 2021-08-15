@@ -3,113 +3,21 @@
     <nav-bar class="home-nav">
       <template #center>购物街</template>
     </nav-bar>
-    <home-swiper :banners="banners"/>
-    <recommend-view :recommends="recommends"/>
-    <feature-view/>
-    <tab-control class="tab-control" :titles="['流行', '新款', '潮流']"/>
+    <!--便于tab-control吸顶展示-->
+    <tab-control v-show="isTabControlFixed" ref="tabControlFixed" :class="{fixed: isTabControlFixed}"
+                 :titles="['流行', '新款', '潮流']"
+                 class="tab-control" @tabClick="tabClick"/>
+    <scroll ref="scroll" :probe-type="3" :pull-up-load="true" class="content" @pullingUp="loadMore"
+            @scroll="contentScroll">
+      <home-swiper :banners="banners" @swiperImageLoad="swiperImageLoad"/>
+      <recommend-view :recommends="recommends"/>
+      <feature-view/>
+      <tab-control ref="tabControl" :titles="['流行', '新款', '潮流']"
+                   @tabClick="tabClick"/>
+      <goods-list :goods="showGoods"/>
+    </scroll>
 
-    <ul>
-      <li>列表1</li>
-      <li>列表2</li>
-      <li>列表3</li>
-      <li>列表4</li>
-      <li>列表5</li>
-      <li>列表6</li>
-      <li>列表7</li>
-      <li>列表8</li>
-      <li>列表9</li>
-      <li>列表10</li>
-      <li>列表11</li>
-      <li>列表12</li>
-      <li>列表13</li>
-      <li>列表14</li>
-      <li>列表15</li>
-      <li>列表16</li>
-      <li>列表17</li>
-      <li>列表18</li>
-      <li>列表19</li>
-      <li>列表20</li>
-      <li>列表21</li>
-      <li>列表22</li>
-      <li>列表23</li>
-      <li>列表24</li>
-      <li>列表25</li>
-      <li>列表26</li>
-      <li>列表27</li>
-      <li>列表28</li>
-      <li>列表29</li>
-      <li>列表30</li>
-      <li>列表31</li>
-      <li>列表32</li>
-      <li>列表33</li>
-      <li>列表34</li>
-      <li>列表35</li>
-      <li>列表36</li>
-      <li>列表37</li>
-      <li>列表38</li>
-      <li>列表39</li>
-      <li>列表40</li>
-      <li>列表41</li>
-      <li>列表42</li>
-      <li>列表43</li>
-      <li>列表44</li>
-      <li>列表45</li>
-      <li>列表46</li>
-      <li>列表47</li>
-      <li>列表48</li>
-      <li>列表49</li>
-      <li>列表50</li>
-      <li>列表51</li>
-      <li>列表52</li>
-      <li>列表53</li>
-      <li>列表54</li>
-      <li>列表55</li>
-      <li>列表56</li>
-      <li>列表57</li>
-      <li>列表58</li>
-      <li>列表59</li>
-      <li>列表60</li>
-      <li>列表61</li>
-      <li>列表62</li>
-      <li>列表63</li>
-      <li>列表64</li>
-      <li>列表65</li>
-      <li>列表66</li>
-      <li>列表67</li>
-      <li>列表68</li>
-      <li>列表69</li>
-      <li>列表70</li>
-      <li>列表71</li>
-      <li>列表72</li>
-      <li>列表73</li>
-      <li>列表74</li>
-      <li>列表75</li>
-      <li>列表76</li>
-      <li>列表77</li>
-      <li>列表78</li>
-      <li>列表79</li>
-      <li>列表80</li>
-      <li>列表81</li>
-      <li>列表82</li>
-      <li>列表83</li>
-      <li>列表84</li>
-      <li>列表85</li>
-      <li>列表86</li>
-      <li>列表87</li>
-      <li>列表88</li>
-      <li>列表89</li>
-      <li>列表90</li>
-      <li>列表91</li>
-      <li>列表92</li>
-      <li>列表93</li>
-      <li>列表94</li>
-      <li>列表95</li>
-      <li>列表96</li>
-      <li>列表97</li>
-      <li>列表98</li>
-      <li>列表99</li>
-      <li>列表100</li>
-    </ul>
+    <back-top v-show="isShowBackTop" @click.native="backClick"/>
   </div>
 </template>
 
@@ -120,16 +28,35 @@
 
   import NavBar from 'components/common/navbar/NavBar'
   import TabControl from 'components/content/tabControl/TabControl'
+  import GoodsList from 'components/content/goodsList/GoodsList'
+  import Scroll from 'components/common/scroll/Scroll'
+  import BackTop from 'components/content/BackTop/BackTop'
 
-  import {getHomeMultiData} from 'network/home'
+  import { getHomeGoods, getHomeMultiData } from 'network/home'
+  import { debounce } from 'common/utils'
 
   export default {
     name: 'Home',
-    data() {
+    data () {
       return {
         banners: [],
         recommends: [],
+        goods: {
+          'pop': { page: 0, list: [] },
+          'new': { page: 0, list: [] },
+          'sell': { page: 0, list: [] },
+        },
+        currentType: 'pop',
+        isShowBackTop: false,
+        tabControlOffsetTop: 0,
+        isTabControlFixed: false,
+        saveScrollY: 0,
       }
+    },
+    computed: {
+      showGoods () {
+        return this.goods[this.currentType].list
+      },
     },
     components: {
       HomeSwiper,
@@ -137,20 +64,103 @@
       FeatureView,
       NavBar,
       TabControl,
+      GoodsList,
+      Scroll,
+      BackTop,
     },
-    created() {
-      getHomeMultiData().then(res => {
-        this.banners = res.data.banner.list
-        this.recommends = res.data.recommend.list
+    created () {
+      // 1.获取多个数据
+      this.getHomeMultiData()
+
+      // 2.获取商品数据
+      this.getHomeGoods('pop')
+      this.getHomeGoods('new')
+      this.getHomeGoods('sell')
+    },
+    mounted () {
+      // 1.监听better-scroll中的图片加载完毕后，重新渲染scrollHeight
+      const refresh = debounce(this.$refs.scroll.refresh, 400)
+      this.$bus.$on('itemImageLoad', () => {
+        // 这样执行refresh会每次分页查询被执行30次,运用防抖函数
+        // this.$refs.scroll.refresh()
+        refresh()
       })
+    },
+    activated () {
+      this.$refs.scroll.scrollTo(0, this.saveScrollY, 0)
+      // 避免来回切换界面，出现偶尔界面无法滑动，因此最好重新刷新refresh
+      this.$refs.scroll.refresh()
+    },
+    deactivated () {
+      this.saveScrollY = this.$refs.scroll.getScrollY()
+    },
+    methods: {
+      tabClick (index) {
+        switch (index) {
+          case 0:
+            this.currentType = 'pop'
+            break
+          case 1:
+            this.currentType = 'new'
+            break
+          case 2:
+            this.currentType = 'sell'
+            break
+        }
+        // 当tabControl处于吸顶的状态，不管点击的是哪个(原有状态/吸顶状态)需要将点击的index赋值给组件
+        this.$refs.tabControlFixed.currentIndex = this.$refs.tabControl.currentIndex = index
+      },
+      backClick () {
+        this.$refs.scroll.scrollTo(0, 0)
+      },
+      contentScroll (position) {
+        // position.y 是一个负数
+        // 1.监听backTop是否展示
+        this.isShowBackTop = Math.abs(position.y) > 1000
+
+        // 2.监听tabControl是否吸顶
+        this.isTabControlFixed = Math.abs(position.y) > this.tabControlOffsetTop
+      },
+      loadMore () {
+        this.getHomeGoods(this.currentType)
+      },
+      swiperImageLoad () {
+        /*
+         此时获取tab-control的offsetTop是不准的，因为轮播图以及其他小图片没有全部加载完
+         当轮播图加载完成后，其他小图已经加载完了，如果高度不准，后续可继续对其他小图也进行图片加载完成的监听
+         */
+        this.tabControlOffsetTop = this.$refs.tabControl.$el.offsetTop
+      },
+      /**
+       * 网络请求相关方法
+       */
+      getHomeMultiData () {
+        getHomeMultiData().then(res => {
+          this.banners = res.data.banner.list
+          this.recommends = res.data.recommend.list
+        })
+      },
+      getHomeGoods (type) {
+        const page = this.goods[type].page + 1
+        getHomeGoods(type, page).then(res => {
+          this.goods[type].list.push(...res.data.list)
+          this.goods[type].page += 1
+
+          // 关闭上拉加载事件
+          this.$refs.scroll.finishPullUp()
+        })
+      },
     },
   }
 </script>
 
 <style scoped>
-  #home{
+  #home {
     padding-top: 44px;
+    position: relative;
+    height: 100vh;
   }
+
   .home-nav {
     background-color: var(--color-tint);
     color: #FFF;
@@ -161,8 +171,25 @@
     top: 0;
     z-index: 10;
   }
+
   .tab-control {
-    position: sticky;
-    top: 44px;
+    position: relative;
+    z-index: 10;
   }
+
+  .content {
+    overflow: hidden;
+
+    position: absolute;
+    top: 44px;
+    bottom: 49px;
+    right: 0;
+    left: 0;
+  }
+
+  /*.content {*/
+  /*  overflow: hidden;*/
+  /*  margin-top: 44px;*/
+  /*  height: calc(100% - 44px - 49px);*/
+  /*}*/
 </style>

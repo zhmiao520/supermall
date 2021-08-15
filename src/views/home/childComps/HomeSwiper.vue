@@ -2,7 +2,7 @@
   <swiper>
     <swiper-item v-for="(item, index) in banners" :key="index">
       <a :href="item.link">
-        <img :src="item.image" alt="">
+        <img :src="item.image" alt="" @load="imageLoad">
       </a>
     </swiper-item>
   </swiper>
@@ -15,18 +15,32 @@
   import SwiperItem from 'components/common/zmSwiper/SwiperItem'
 
   export default {
-    name: "HomeSwiper",
+    name: 'HomeSwiper',
     props: {
       banners: {
         type: Array,
-        default() {
+        default () {
           return []
         },
       },
     },
+    data () {
+      return {
+        isLoad: false,
+      }
+    },
     components: {
       Swiper,
       SwiperItem,
+    },
+    methods: {
+      imageLoad () {
+        // 当第一张图片加载完成，就可以知道了，后续的无需继续回传函数
+        if (!this.isLoad) {
+          this.$emit('swiperImageLoad')
+          this.isLoad = true
+        }
+      },
     },
   }
 </script>
