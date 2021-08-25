@@ -30,13 +30,14 @@
   import TabControl from 'components/content/tabControl/TabControl'
   import GoodsList from 'components/content/goodsList/GoodsList'
   import Scroll from 'components/common/scroll/Scroll'
-  import BackTop from 'components/content/BackTop/BackTop'
 
   import { getHomeGoods, getHomeMultiData } from 'network/home'
-  import { debounce } from 'common/utils'
+  import { backTopMixin, itemImageListenerMixin } from 'common/mixin'
+  import { NEW, POP, SELL } from 'common/const'
 
   export default {
     name: 'Home',
+    mixins: [itemImageListenerMixin, backTopMixin],
     data () {
       return {
         banners: [],
@@ -46,8 +47,7 @@
           'new': { page: 0, list: [] },
           'sell': { page: 0, list: [] },
         },
-        currentType: 'pop',
-        isShowBackTop: false,
+        currentType: POP,
         tabControlOffsetTop: 0,
         isTabControlFixed: false,
         saveScrollY: 0,
@@ -66,25 +66,15 @@
       TabControl,
       GoodsList,
       Scroll,
-      BackTop,
     },
     created () {
       // 1.获取多个数据
       this.getHomeMultiData()
 
       // 2.获取商品数据
-      this.getHomeGoods('pop')
-      this.getHomeGoods('new')
-      this.getHomeGoods('sell')
-    },
-    mounted () {
-      // 1.监听better-scroll中的图片加载完毕后，重新渲染scrollHeight
-      const refresh = debounce(this.$refs.scroll.refresh, 400)
-      this.$bus.$on('itemImageLoad', () => {
-        // 这样执行refresh会每次分页查询被执行30次,运用防抖函数
-        // this.$refs.scroll.refresh()
-        refresh()
-      })
+      this.getHomeGoods(POP)
+      this.getHomeGoods(NEW)
+      this.getHomeGoods(SELL)
     },
     activated () {
       this.$refs.scroll.scrollTo(0, this.saveScrollY, 0)
@@ -92,31 +82,32 @@
       this.$refs.scroll.refresh()
     },
     deactivated () {
+      // 1.保存滚动的位置
       this.saveScrollY = this.$refs.scroll.getScrollY()
+
+      // 2.关闭事件总线的事件监听
+      this.$bus.$off('itemImageLoad', this.itemImageListener)
     },
     methods: {
       tabClick (index) {
         switch (index) {
           case 0:
-            this.currentType = 'pop'
+            this.currentType = POP
             break
           case 1:
-            this.currentType = 'new'
+            this.currentType = NEW
             break
           case 2:
-            this.currentType = 'sell'
+            this.currentType = SELL
             break
         }
         // 当tabControl处于吸顶的状态，不管点击的是哪个(原有状态/吸顶状态)需要将点击的index赋值给组件
         this.$refs.tabControlFixed.currentIndex = this.$refs.tabControl.currentIndex = index
       },
-      backClick () {
-        this.$refs.scroll.scrollTo(0, 0)
-      },
       contentScroll (position) {
         // position.y 是一个负数
         // 1.监听backTop是否展示
-        this.isShowBackTop = Math.abs(position.y) > 1000
+        this.listenShowBackTop(position)
 
         // 2.监听tabControl是否吸顶
         this.isTabControlFixed = Math.abs(position.y) > this.tabControlOffsetTop
