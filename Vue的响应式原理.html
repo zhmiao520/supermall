@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Vue的响应式原理</title>
+</head>
+<body>
+<!--
+1.app.message修改数据，Vue内部是如何监听message的改变
+* Object.defineProperty -> 对Vue实例传入的options对象，重新定义一份新的对象定义属性
+  set,get方法，一旦有人获取数据-》get方法会调用，set值就会触发-》set方法
+2.当数据发生改变，Vue是如何通知哪些人，界面发生改变的
+* 发布订阅者模式 -> 发布者 - dependency 通过Object.defineProperty-》get方法能知道哪些人调用了方法
+  也就是subscribe(订阅者)，全部收入归纳到订阅者中的subs属性中，一旦属性发生变化，set方法-》遍历发布者通知（notify）里面
+  所有订阅者-》调用每个订阅者内部的update方法，更新自己的属性
+-->
+<div id="app">
+  {{ message }}
+  {{ message }}
+  {{ message }}
+
+  {{ name }}
+</div>
+
+<script>
+  // 假设obj就是Options传入对象data中的数据
+  const obj = {
+    message: 'fire',
+    name: 'zm',
+  }
+
+  Object.keys(obj).forEach(key => {
+    let value = obj[key]
+
+    Object.defineProperty(obj, key, {
+      set (newVal) {
+        console.log('监听' + key + '改变')
+        // 值发生改变由订阅者发起通知 -> 每个属性都有对应的一个dep对象，
+        // 这样儿就能达到，每个属性改变都通知对应所有对应使用的人来改变属性，互不干扰
+        dep.notify()
+        // 告诉谁？谁在用告诉谁？谁在用？
+        // 根据解析html代码，获取到哪些人人有用属性
+        // 张三，李四，王五
+        value = newVal
+      },
+      get () {
+        console.log('获取' + key + '对应的值')
+        // 张三：get -> update
+        // 李四：get -> update
+        // 王五：get -> update
+        // 通过获取get属性来将使用的人加入dep中
+        return value
+      },
+    })
+
+    // 发布订阅者
+    class Dep {
+      constructor () {
+        this.subs = []
+      }
+
+      addSub (watcher) {
+        this.subs.push(watcher)
+      }
+
+      notify () {
+        this.subs.forEach(s => {
+          s.update()
+        })
+      }
+    }
+
+    class Watcher {
+      constructor (name) {
+        this.name = name
+      }
+
+      update () {
+        console.log(this.name + '发生update')
+      }
+    }
+
+    let dep = new Dep()
+    let watcher1 = new Watcher('张三')
+    let watcher2 = new Watcher('李四')
+    let watcher3 = new Watcher('王五')
+    dep.addSub(watcher1)
+    dep.addSub(watcher2)
+    dep.addSub(watcher3)
+  })
+</script>
+
+<script src="./node_modules/vue/dist/vue.js"></script>
+<script>
+  new Vue({
+    el: '#app',
+    data: {
+      message: 'fire',
+      name: 'zm',
+    },
+  })
+</script>
+</body>
+</html>
